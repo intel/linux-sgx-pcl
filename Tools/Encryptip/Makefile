@@ -59,7 +59,7 @@ SERVICE_LIBRARY_NAME 	:= sgx_tservice
 APP_INCLUDE_PATH	:=  -I$(OPENSSL_ROOT)/include -I$(PCL_DIR)/include -I$(PCL_DIR)/Tools/Encryptip -I$(PCL_DIR)/common -I$(SGX_SDK)/include
 APP_C_FLAGS 		:= $(APP_INCLUDE_PATH) -fPIC -Wno-attributes -g -mrdrnd
 
-SSL_CRYPTO_LIB_NAME := crypto
+SSL_CRYPTO_LIB_NAME := :libcrypto.a
 
 APP_LINK_FLAGS := -L$(OPENSSL_ROOT) -l$(SSL_CRYPTO_LIB_NAME) -L$(SGX_LIBRARY_PATH) -l$(SERVICE_LIBRARY_NAME) -ldl -lpthread
 
