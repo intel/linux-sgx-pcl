@@ -169,7 +169,7 @@ Seal_Enclave_Name_Target := $(Seal_Enclave_Name)
 Signed_Seal_Enclave_Name_Target := $(Signed_Seal_Enclave_Name)
 Unsigned_Enclave_Name 	:= $(Encrypted_Enclave_Name)
 Pcl_Encryption_Tool := $(PCL_DIR)/bin/x64/sgx_encrypt
-PCL_KEY := $(PCL_DIR)/SampleCode/debug_mock_key.bin
+PCL_KEY := ../debug_mock_key.bin
 
 ifeq ($(SGX_DEBUG),1)
 Encryption_Tool_Flags := -d
@@ -188,7 +188,7 @@ Enclave_Link_Flags += $(PCL_LINK_FLAGS)
 App_Cpp_Flags += -DSGX_USE_PCL
 Seal_Enclave_Config_File := Seal/Seal.config.xml
 App_Cpp_Flags += -I../Seal
-Seal_Enclave_Cpp_Flags := $(Enclave_Cpp_Flags) -I$(PCL_DIR)/Include -I$(PCL_DIR)/Common
+Seal_Enclave_Cpp_Flags := $(Enclave_Cpp_Flags) -I$(PCL_DIR)/include -I$(PCL_DIR)/common
 
 endif # ifneq ($(SGX_PCL),0)
 
