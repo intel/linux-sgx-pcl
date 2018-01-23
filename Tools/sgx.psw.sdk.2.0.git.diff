@@ -407,12 +407,14 @@ index 5317ab4..cdfbf52 100644
  // init_enclave()
  //      Initialize enclave.
  // Parameters:
-@@ -82,6 +85,20 @@ extern "C" int init_enclave(void *enclave_base, void *ms)
+@@ -82,6 +85,22 @@ extern "C" int init_enclave(void *enclave_base, void *ms)
          return -1;
      }
 
 +    if(NULL != pcl_entry)
 +    {
++        // LFENCE for spectre 1 attack
++        __builtin_ia32_lfence();
 +        system_features_t * csi = (system_features_t *)ms;
 +        if(NULL == csi->sealed_key)
 +        {

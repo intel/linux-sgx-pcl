@@ -37,7 +37,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 Documentation
 -------------
 
-See more elaborate documentation at [Intel(R) SGX Protected Code Loader for Linux User Guide](https://github.com/otcshare/linux-sgx-pcl/blob/master/Intel(R)%20SGX%20Protected%20Code%20Loader%20for%20Linux%20User%20Guide.pdf).
+See more elaborate documentation at [Intel(R) SGX Protected Code Loader for Linux User Guide](https://github.com/intel/linux-sgx-pcl/blob/master/Intel(R)%20SGX%20Protected%20Code%20Loader%20for%20Linux%20User%20Guide.pdf).
 
 Prerequisites 
 -------------
