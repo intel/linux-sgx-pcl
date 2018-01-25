@@ -44,9 +44,9 @@ Prerequisites
 
 Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
 -------------------------------------------------------
-Follow the instructions in the [linux-sgx-sdk](https://github.com/01org/linux-sgx) project to build and install the Intel(R) SGX PSW and Intel(R) SGX SDK, branch sgx_2.0.
+Follow the instructions in the [linux-sgx-sdk](https://github.com/01org/linux-sgx) project to build and install the Intel(R) SGX PSW and Intel(R) SGX SDK, branches sgx_2.0 or sgx_2.1.
 
-**Note:** Current Intel(R) SGX PCL supports branch sgx_2.0 of the Intel(R) SGX PSW and Intel(R) SGX SDK.  
+**Note:** Current Intel(R) SGX PCL supports branches sgx_2.0 or sgx_2.1 of the Intel(R) SGX PSW and Intel(R) SGX SDK.  
 
 **Note:** Non simulation build flavors require the platform to be Intel(R) SGX enabled (CPU and BIOS)
 
@@ -82,13 +82,14 @@ Apply the required modifications to Intel(R) SGX PSW and Intel(R) SGX SDK source
   ```
     $ cd <linux-sgx>
   ```
-  where <linux-sgx> is the home directory of Intel(R) SGX PSW and Intel(R) SGX SDK.
+  where \<linux-sgx\> is the home directory of Intel(R) SGX PSW and Intel(R) SGX SDK.
   ```
-    $ git apply <path_to_pcl_dir>/Tools/sgx.psw.sdk.2.0.git.diff
+    $ git apply <path_to_pcl_dir>/Tools/sgx.psw.sdk.2.1.git.diff
   ```
   where <path_to_pcl_dir> is path to Intel(R) SGX PCL base directory (either full or relative).
 
-**Note:** The git patch file can only be applied on a specific branch of the Intel(R) SGX PSW and Intel(R) SGX SDK. Enclave writer must verify the patch is applied on branch sgx_2.0. 
+
+**Note:** A git patch file can only be applied on a specific branch. Enclave writer must verify the patch is applied on the correct branch. When using Intel(R) SGX PSW and Intel(R) SGX SDK branch sgx_2.0 use sgx.psw.sdk.2.0.git.diff. When using branch sgx_2.1 use sgx.psw.sdk.2.1.git.diff. 
 
 Rebuild and Reinstall Intel(R) SGX PSW and Intel(R) SGX SDK
 -----------------------------------------------------------
