@@ -188,7 +188,7 @@ Enclave_Link_Flags += $(PCL_LINK_FLAGS)
 App_Cpp_Flags += -DSGX_USE_PCL
 Seal_Enclave_Config_File := Seal/Seal.config.xml
 App_Cpp_Flags += -I../Seal
-Seal_Enclave_Cpp_Flags := $(Enclave_Cpp_Flags) -I$(PCL_DIR)/include -I$(PCL_DIR)/common
+Seal_Enclave_Cpp_Flags := $(Enclave_Cpp_Flags) -I$(PCL_DIR)/Include -I$(PCL_DIR)/Common
 
 endif # ifneq ($(SGX_PCL),0)
 
@@ -215,11 +215,12 @@ endif
 .PHONY: all run pcl
 
 ifeq ($(Build_Mode), HW_RELEASE)
-all: .config_$(Build_Mode)_$(SGX_ARCH) $(Seal_Enclave_Name_Target) $(App_Name) $(Enclave_Name)
+all: .config_$(Build_Mode)_$(SGX_ARCH) $(Seal_Enclave_Name_Target) $(App_Name) $(Enclave_Name) $(Encrypted_Enclave_Name)
 	@echo "The project has been built in release hardware mode."
 	@echo "Please sign the $(Enclave_Name) first with your signing key before you run the $(App_Name) to launch and access the enclave."
-	@echo "To sign the enclave use the command:"
-	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Enclave_Name) -out <$(Signed_Enclave_Name)> -config $(Enclave_Config_File)"
+	@echo "To sign the enclaves use the commands:"
+	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Encrypted_Enclave_Name) -out $(Signed_Enclave_Name) -config $(Enclave_Config_File)"
+	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <your key> -enclave $(Seal_Enclave_Name) -out $(Signed_Seal_Enclave_Name) -config $(Seal_Enclave_Config_File)"
 	@echo "You can also sign the enclave using an external signing tool."
 	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 else
