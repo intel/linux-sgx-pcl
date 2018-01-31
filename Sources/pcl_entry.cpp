@@ -95,6 +95,8 @@ sgx_status_t pcl_entry(void* elf_base, void* sealed_blob)
     {
         return SGX_ERROR_UNEXPECTED;
     }
+    // LFENCE for spectre 1 attack
+    __builtin_ia32_lfence();
     // Copy sealed blob into enclave binary. 
     pcl_memcpy(tbl->sealed_blob, sealed_blob, PCL_SEALED_BLOB_SIZE);
     

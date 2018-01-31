@@ -1,17 +1,17 @@
 diff --git a/common/inc/internal/rts.h b/common/inc/internal/rts.h
-index 4c737c8..23f5eb3 100644
+index f51a149..a0749ae 100644
 --- a/common/inc/internal/rts.h
 +++ b/common/inc/internal/rts.h
-@@ -67,6 +67,7 @@ typedef struct _system_features
- {
-     uint64_t cpu_features;
-     sdk_version_t version;
+@@ -74,6 +74,7 @@ typedef struct _system_features
+     */
+     uint64_t system_feature_set[1];
+     uint32_t cpuinfo_table[8][4];
 +    uint8_t* sealed_key;
-     /* system feature set array. MSb of each element indicates whether this is
-      * the last element. This will help tRTS to know when it can stop walking
-      * through the array searching for certain features.
+ }system_features_t;
+ 
+ // current system_feature_set only contains one element of type uint64_t, the highest
 diff --git a/common/inc/sgx_error.h b/common/inc/sgx_error.h
-index a991776..7e456a0 100644
+index 72bbde1..44c1cc2 100644
 --- a/common/inc/sgx_error.h
 +++ b/common/inc/sgx_error.h
 @@ -91,6 +91,12 @@ typedef enum _status_t
@@ -28,13 +28,13 @@ index a991776..7e456a0 100644
      /* SGX errors are only used in the file API when there is no appropriate EXXX (EINVAL, EIO etc.) error code */
      SGX_ERROR_FILE_BAD_STATUS               = SGX_MK_ERROR(0x7001),	/* The file is in bad status, run sgx_clearerr to try and fix it */
 diff --git a/common/inc/sgx_urts.h b/common/inc/sgx_urts.h
-index f90a2d0..42d1ee1 100644
+index 5e74cbc..570ff86 100644
 --- a/common/inc/sgx_urts.h
 +++ b/common/inc/sgx_urts.h
 @@ -55,6 +55,15 @@ typedef uint8_t sgx_launch_token_t[1024];
-
+ 
  sgx_status_t SGXAPI sgx_create_enclave(const char *file_name, const int debug, sgx_launch_token_t *launch_token, int *launch_token_updated, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr);
-
+ 
 +sgx_status_t SGXAPI sgx_create_encrypted_enclave(
 +                        const char *file_name,
 +                        const int debug,
@@ -45,23 +45,23 @@ index f90a2d0..42d1ee1 100644
 +                        uint8_t* sealed_key);
 +
  sgx_status_t SGXAPI sgx_destroy_enclave(const sgx_enclave_id_t enclave_id);
-
+ 
  #ifdef __cplusplus
 diff --git a/common/src/linux/xsave_gnu.S b/common/src/linux/xsave_gnu.S
-index 364e1d3..0bac797 100644
+index a2124bc..2df7130 100644
 --- a/common/src/linux/xsave_gnu.S
 +++ b/common/src/linux/xsave_gnu.S
-@@ -63,7 +63,7 @@
+@@ -82,7 +82,7 @@
  #endif
  .endm
-
+ 
 -.text
 +.section .nipx,"ax",@progbits
  DECLARE_LOCAL_FUNC restore_xregs
  #if defined(LINUX32)
      mov     SE_WORDSIZE(%esp), %ecx
 diff --git a/psw/urts/enclave.cpp b/psw/urts/enclave.cpp
-index 3d5f8dd..f954229 100644
+index 6031447..0240175 100644
 --- a/psw/urts/enclave.cpp
 +++ b/psw/urts/enclave.cpp
 @@ -64,6 +64,7 @@ CEnclave::CEnclave(CLoader &ldr)
@@ -75,7 +75,7 @@ index 3d5f8dd..f954229 100644
 @@ -170,6 +171,16 @@ size_t CEnclave::get_dynamic_tcs_list_size()
      return count;
  }
-
+ 
 +uint8_t *CEnclave::get_sealed_key()
 +{
 +    return m_sealed_key;
@@ -90,7 +90,7 @@ index 3d5f8dd..f954229 100644
  {
      if(trts_error == (unsigned int)SE_ERROR_READ_LOCK_FAIL)
 diff --git a/psw/urts/enclave.h b/psw/urts/enclave.h
-index d3a3576..7f3471e 100644
+index 910cadb..3c0f978 100644
 --- a/psw/urts/enclave.h
 +++ b/psw/urts/enclave.h
 @@ -80,6 +80,8 @@ public:
@@ -100,7 +100,7 @@ index d3a3576..7f3471e 100644
 +    uint8_t* get_sealed_key();
 +    void set_sealed_key(uint8_t *sealed_key);
  private:
-     CTrustThread * get_tcs(bool is_initialize_ecall = false);
+     CTrustThread * get_tcs(int ecall_cmd);
      void put_tcs(CTrustThread *trust_thread);
 @@ -102,6 +104,7 @@ private:
      pthread_t               m_pthread_tid;
@@ -108,26 +108,26 @@ index d3a3576..7f3471e 100644
      se_handle_t             m_new_thread_event;
 +    uint8_t                 *m_sealed_key;
  };
-
+ 
  class CEnclavePool: private Uncopyable
 diff --git a/psw/urts/enclave_creator_hw_com.cpp b/psw/urts/enclave_creator_hw_com.cpp
-index 1b1c12d..8f22861 100644
+index 359a4fd..fa40892 100644
 --- a/psw/urts/enclave_creator_hw_com.cpp
 +++ b/psw/urts/enclave_creator_hw_com.cpp
-@@ -61,6 +61,7 @@ int EnclaveCreatorHW::initialize(sgx_enclave_id_t enclave_id)
-     info.cpu_features = 0;
-     get_cpu_features(&info.cpu_features);
-     info.version = (sdk_version_t)MIN((uint32_t)SDK_VERSION_2_0, enclave->get_enclave_version());
+@@ -62,6 +62,7 @@ int EnclaveCreatorHW::initialize(sgx_enclave_id_t enclave_id)
+     memset(info.cpuinfo_table, 0, sizeof(info.cpuinfo_table));
+     get_cpu_features(&info.cpu_features, (uint32_t*)info.cpuinfo_table);
+     info.version = (sdk_version_t)MIN((uint32_t)SDK_VERSION_2_1, enclave->get_enclave_version());
 +    info.sealed_key = enclave->get_sealed_key();
      if (is_EDMM_supported(enclave_id))
              info.system_feature_set[0] |= EDMM_ENABLE_BIT;
-
+ 
 diff --git a/psw/urts/linux/urts.cpp b/psw/urts/linux/urts.cpp
-index 6ff9b42..58be7c4 100644
+index 0137d73..f6bc307 100644
 --- a/psw/urts/linux/urts.cpp
 +++ b/psw/urts/linux/urts.cpp
 @@ -70,3 +70,59 @@ extern "C" sgx_status_t sgx_create_enclave(const char *file_name, const int debu
-
+ 
      return ret;
  }
 +
@@ -186,7 +186,7 @@ index 6ff9b42..58be7c4 100644
 +
 +    return ret;
 +}
-diff --git a/psw/urts/linux/urts.lds b/psw/urts/linux/urts.lds 
+diff --git a/psw/urts/linux/urts.lds b/psw/urts/linux/urts.lds
 index 6c4dd01..37679ce 100644
 --- a/psw/urts/linux/urts.lds
 +++ b/psw/urts/linux/urts.lds
@@ -199,25 +199,25 @@ index 6c4dd01..37679ce 100644
          *;
  };
 diff --git a/psw/urts/linux/urts_internal.cpp b/psw/urts/linux/urts_internal.cpp
-index 80c7d09..6fbe030 100644
+index e27c121..76a1ef6 100644
 --- a/psw/urts/linux/urts_internal.cpp
 +++ b/psw/urts/linux/urts_internal.cpp
-@@ -41,7 +41,7 @@
- #include "se_map.h"
-
-
+@@ -42,7 +42,7 @@
+ #include "enclave_creator.h"
+ 
+ 
 -extern sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t& file, le_prd_css_file_t *prd_css_file, sgx_launch_token_t *launch, int *launch_updated, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr);
 +extern sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t& file, le_prd_css_file_t *prd_css_file, sgx_launch_token_t *launch, int *launch_updated, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr, uint8_t* sealed_key = NULL);
-
+ 
  extern "C" sgx_status_t sgx_create_le(const char* file_name, const char* prd_css_file_name, const int debug, sgx_launch_token_t *launch_token, int *launch_token_updated, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr, int *production_loaded)
  {
 diff --git a/psw/urts/parser/elfparser.cpp b/psw/urts/parser/elfparser.cpp
-index 09f8122..b90b91f 100644
+index 230aede..46a1c74 100644
 --- a/psw/urts/parser/elfparser.cpp
 +++ b/psw/urts/parser/elfparser.cpp
-@@ -862,3 +862,11 @@ void ElfParser::get_executable_sections(vector<const char *>& xsec_names) const
+@@ -991,3 +991,11 @@ void ElfParser::get_pages_to_protect(uint64_t enclave_base_addr, std::vector<std
+         }
      }
-     return;
  }
 +
 +bool ElfParser::is_enclave_encrypted() const
@@ -228,54 +228,54 @@ index 09f8122..b90b91f 100644
 +    return (NULL != get_section_by_name(ehdr, sec_name));
 +}
 diff --git a/psw/urts/parser/elfparser.h b/psw/urts/parser/elfparser.h
-index 0a78e6a..09f781f 100644
+index 9b48c2d..0f5b57a 100644
 --- a/psw/urts/parser/elfparser.h
 +++ b/psw/urts/parser/elfparser.h
-@@ -90,6 +90,7 @@ public:
+@@ -91,6 +91,7 @@ public:
      sgx_status_t modify_info(enclave_diff_info_t *enclave_diff_info);
      sgx_status_t get_info(enclave_diff_info_t *enclave_diff_info);
      void get_executable_sections(vector<const char *>& xsec_names) const;
 +    bool is_enclave_encrypted() const;
  
- private:
-     const uint8_t*      m_start_addr;
+     bool set_memory_protection(uint64_t enclave_base_addr, bool is_after_initialization);
+     void get_pages_to_protect(uint64_t enclave_base_addr, std::vector<std::tuple<uint64_t, uint64_t, uint32_t>>&) const;
 diff --git a/psw/urts/urts_com.h b/psw/urts/urts_com.h
-index 45935bd..80bb6b9 100644
+index f11936c..8a037c4 100644
 --- a/psw/urts/urts_com.h
 +++ b/psw/urts/urts_com.h
-@@ -180,7 +180,7 @@ static bool is_SGX_DBG_OPTIN_variable_set()
+@@ -182,7 +182,7 @@ static bool is_SGX_DBG_OPTIN_variable_set()
  }
-
-
+ 
+ 
 -static int __create_enclave(BinParser &parser, uint8_t* base_addr, const metadata_t *metadata, se_file_t& file, const bool debug, SGXLaunchToken *lc, le_prd_css_file_t *prd_css_file, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr)
 +static int __create_enclave(BinParser &parser, uint8_t* base_addr, const metadata_t *metadata, se_file_t& file, const bool debug, SGXLaunchToken *lc, le_prd_css_file_t *prd_css_file, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr, uint8_t *sealed_key)
  {
      // The "parser" will be registered into "loader" and "loader" will be registered into "enclave".
      // After enclave is created, "parser" and "loader" are not needed any more.
-@@ -218,6 +218,10 @@ static int __create_enclave(BinParser &parser, uint8_t* base_addr, const metadat
+@@ -227,6 +227,10 @@ static int __create_enclave(BinParser &parser, uint8_t* base_addr, const metadat
          return ret;
      }
-
+ 
 +    if(sealed_key != NULL)
 +    {
 +        enclave->set_sealed_key(sealed_key);
 +    }
-
+ 
      // It is accurate to get debug flag from secs
      enclave->set_dbg_flag(!!(loader.get_secs().attributes.flags & SGX_FLAGS_DEBUG));
-@@ -370,7 +374,7 @@ fail:
+@@ -384,7 +388,7 @@ fail:
  }
-
-
+ 
+ 
 -sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t& file, le_prd_css_file_t *prd_css_file, sgx_launch_token_t *launch, int *launch_updated, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr)
 +sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t& file, le_prd_css_file_t *prd_css_file, sgx_launch_token_t *launch, int *launch_updated, sgx_enclave_id_t *enclave_id, sgx_misc_attribute_t *misc_attr, uint8_t* sealed_key = NULL)
  {
      unsigned int ret = SGX_SUCCESS;
      sgx_status_t lt_result = SGX_SUCCESS;
-@@ -406,6 +410,17 @@ sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t
+@@ -420,6 +424,17 @@ sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t
          goto clean_return;
      }
-
+ 
 +    if(NULL != sealed_key && true != parser.is_enclave_encrypted())
 +    {
 +        ret = SGX_ERROR_PCL_NOT_ENCRYPTED;
@@ -290,7 +290,7 @@ index 45935bd..80bb6b9 100644
      if(SGX_SUCCESS != (ret = get_metadata(&parser, debug,  &metadata, &sgx_misc_attr)))
      {
          goto clean_return;
-@@ -436,7 +451,7 @@ sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t
+@@ -450,7 +465,7 @@ sgx_status_t _create_enclave(const bool debug, se_file_handle_t pfile, se_file_t
      //Need to set the whole misc_attr instead of just secs_attr.
      do {
          ret = __create_enclave(parser, mh->base_addr, metadata, file, debug, lc, prd_css_file, enclave_id,
@@ -298,27 +298,27 @@ index 45935bd..80bb6b9 100644
 +                               misc_attr, sealed_key);
          //SGX_ERROR_ENCLAVE_LOST caused by initializing enclave while power transition occurs
      } while(SGX_ERROR_ENCLAVE_LOST == ret);
-
+ 
 diff --git a/sdk/simulation/assembly/linux/lowlib.S b/sdk/simulation/assembly/linux/lowlib.S
-index 9db2195..1b1610b 100644
+index e6481f5..acbd296 100644
 --- a/sdk/simulation/assembly/linux/lowlib.S
 +++ b/sdk/simulation/assembly/linux/lowlib.S
 @@ -34,7 +34,7 @@
-
+ 
      .file "lowlib.S"
-
+ 
 -    .text
 +.section .nipx,"ax",@progbits
-
+ 
  DECLARE_LOCAL_FUNC get_bp
      mov %xbp, %xax
 diff --git a/sdk/simulation/tinst/t_instructions.cpp b/sdk/simulation/tinst/t_instructions.cpp
-index b7b1dd8..8065512 100644
+index d597da0..0dcd815 100644
 --- a/sdk/simulation/tinst/t_instructions.cpp
 +++ b/sdk/simulation/tinst/t_instructions.cpp
 @@ -284,6 +284,9 @@ static void _EREPORT(const sgx_target_info_t* ti, const sgx_report_data_t* rd, s
-
-
+ 
+ 
  static void
 +_EEXIT(uintptr_t dest, uintptr_t xcx, uintptr_t xdx, uintptr_t xsi, uintptr_t xdi) __attribute__((section(".nipx")));
 +
@@ -327,20 +327,20 @@ index b7b1dd8..8065512 100644
  {
      // By simulator convention, XDX contains XBP and XCX contains XSP.
 diff --git a/sdk/simulation/tinst/t_instructions.h b/sdk/simulation/tinst/t_instructions.h
-index 3b4e71e..6c95f90 100644
+index 8e1ab72..c28808b 100644
 --- a/sdk/simulation/tinst/t_instructions.h
 +++ b/sdk/simulation/tinst/t_instructions.h
 @@ -43,7 +43,7 @@ extern "C" {
  extern SE_DECLSPEC_EXPORT global_data_sim_t g_global_data_sim;
-
+ 
  uintptr_t _SE3(uintptr_t xax, uintptr_t xbx, uintptr_t xcx,
 -               uintptr_t xdx, uintptr_t xsi, uintptr_t xdi);
 +               uintptr_t xdx, uintptr_t xsi, uintptr_t xdi)  __attribute__((section(".nipx")));
-
+ 
  #ifdef __cplusplus
  }
 diff --git a/sdk/simulation/uinst/td_mngr.h b/sdk/simulation/uinst/td_mngr.h
-index 0e6da09..8289666 100644
+index 5daf8c0..ea8599a 100644
 --- a/sdk/simulation/uinst/td_mngr.h
 +++ b/sdk/simulation/uinst/td_mngr.h
 @@ -64,7 +64,7 @@ extern "C" {
@@ -349,29 +349,29 @@ index 0e6da09..8289666 100644
  int td_mngr_set_td(void *enclave_base, tcs_t *tcs);
 -int td_mngr_restore_td(tcs_t *tcs);
 +int td_mngr_restore_td(tcs_t *tcs)  __attribute__((section (".nipx")));
-
+ 
  #ifdef __cplusplus
  }
 diff --git a/sdk/simulation/urtssim/enclave_creator_sim.cpp b/sdk/simulation/urtssim/enclave_creator_sim.cpp
-index 659976d..708f995 100644
+index 03424ad..9c3567e 100644
 --- a/sdk/simulation/urtssim/enclave_creator_sim.cpp
 +++ b/sdk/simulation/urtssim/enclave_creator_sim.cpp
 @@ -239,6 +239,7 @@ int EnclaveCreatorSim::initialize(sgx_enclave_id_t enclave_id)
      info.cpu_features = 0;
-     get_cpu_features(&info.cpu_features);
+     get_cpu_features(&info.cpu_features, (unsigned int*)info.cpuinfo_table);
      info.version = SDK_VERSION_1_5;
 +    info.sealed_key = enclave->get_sealed_key();
      status = enclave->ecall(ECMD_INIT_ENCLAVE, NULL, reinterpret_cast<void *>(&info));
      //free the tcs used by initialization;
      enclave->get_thread_pool()->reset();
 diff --git a/sdk/simulation/urtssim/urts_deploy.c b/sdk/simulation/urtssim/urts_deploy.c
-index f98e10f..f3a0b8a 100644
+index f1fa8bc..e4dca8a 100644
 --- a/sdk/simulation/urtssim/urts_deploy.c
 +++ b/sdk/simulation/urtssim/urts_deploy.c
 @@ -38,6 +38,12 @@ sgx_status_t sgx_create_enclave()
      return SGX_ERROR_UNEXPECTED;
  }
-
+ 
 +sgx_status_t sgx_create_encrypted_enclave()
 +{
 +    printf("Please use the correct uRTS library from PSW package.\n");
@@ -382,25 +382,25 @@ index f98e10f..f3a0b8a 100644
  void sgx_debug_unload_state_remove_element(){};
  void sgx_destroy_enclave(){};
 diff --git a/sdk/trts/init_enclave.cpp b/sdk/trts/init_enclave.cpp
-index 5317ab4..cdfbf52 100644
+index 129933a..510ddef 100644
 --- a/sdk/trts/init_enclave.cpp
 +++ b/sdk/trts/init_enclave.cpp
 @@ -54,9 +54,9 @@ uint64_t g_cpu_feature_indicator = 0;
  int EDMM_supported = 0;
  sdk_version_t g_sdk_version = SDK_VERSION_1_5;
-
+ 
 -const volatile global_data_t g_global_data = {1, 2, 3, 4,  
 +const volatile global_data_t g_global_data __attribute__((section(".nipd"))) = {1, 2, 3, 4,
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0}, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, 0, {{{0, 0, 0, 0, 0, 0, 0}}}};
 -uint32_t g_enclave_state = ENCLAVE_INIT_NOT_STARTED;
 +uint32_t g_enclave_state __attribute__((section(".nipd"))) = ENCLAVE_INIT_NOT_STARTED;
-
+ 
  extern "C" {
  uintptr_t __stack_chk_guard = 0;
 @@ -66,6 +66,9 @@ uintptr_t __stack_chk_guard = 0;
  __weak_alias(__intel_security_cookie, __stack_chk_guard);
  }
-
+ 
 +extern sgx_status_t pcl_entry(void* enclave_base,void* ms) __attribute__((weak));
 +extern "C" int init_enclave(void *enclave_base, void *ms) __attribute__((section(".nipx")));
 +
@@ -410,7 +410,7 @@ index 5317ab4..cdfbf52 100644
 @@ -82,6 +85,22 @@ extern "C" int init_enclave(void *enclave_base, void *ms)
          return -1;
      }
-
+ 
 +    if(NULL != pcl_entry)
 +    {
 +        // LFENCE for spectre 1 attack
@@ -431,47 +431,47 @@ index 5317ab4..cdfbf52 100644
      if(0 != relocate_enclave(enclave_base))
      {
 diff --git a/sdk/trts/linux/trts_pic.S b/sdk/trts/linux/trts_pic.S
-index 60bf47f..c8e19c5 100644
+index a772f64..4b97de2 100644
 --- a/sdk/trts/linux/trts_pic.S
 +++ b/sdk/trts/linux/trts_pic.S
 @@ -40,7 +40,8 @@
-
+ 
  #include "trts_pic.h"
-
+ 
 -    .text
 +    /* .text */
 +    .section .nipx,"ax",@progbits
-
+ 
  DECLARE_LOCAL_FUNC get_enclave_base
      lea_pic __ImageBase, %xax
 diff --git a/sdk/trts/trts_internal.h b/sdk/trts/trts_internal.h
-index efd48ad..b98b99f 100644
+index 239a181..a11f137 100644
 --- a/sdk/trts/trts_internal.h
 +++ b/sdk/trts/trts_internal.h
-@@ -65,7 +65,7 @@ void *get_enclave_base();
- int get_enclave_state();
+@@ -66,7 +66,7 @@ int get_enclave_state();
  void set_enclave_state(int state);
-
--sgx_status_t do_init_enclave(void *ms);
-+sgx_status_t do_init_enclave(void *ms) __attribute__((section(".nipx")));
+ 
+ sgx_status_t do_init_thread(void *tcs);
+-sgx_status_t do_init_enclave(void *ms, void *tcs);
++sgx_status_t do_init_enclave(void *ms, void *tcs) __attribute__((section(".nipx")));
  sgx_status_t do_ecall(int index, void *ms, void *tcs);
  sgx_status_t do_oret(void *ms);
  sgx_status_t trts_handle_exception(void *tcs);
 diff --git a/sdk/trts/trts_nsp.cpp b/sdk/trts/trts_nsp.cpp
-index 7a3e9a1..8d6443b 100644
+index 12c6253..a50aec0 100644
 --- a/sdk/trts/trts_nsp.cpp
 +++ b/sdk/trts/trts_nsp.cpp
 @@ -71,6 +71,8 @@ static void init_stack_guard(void *tcs)
      thread_data->stack_guard = tmp_stack_guard;
  }
-
+ 
 +extern "C" int enter_enclave(int index, void *ms, void *tcs, int cssa) __attribute__((section(".nipx")));
 +
  extern "C" int enter_enclave(int index, void *ms, void *tcs, int cssa)
  {
      if(get_enclave_state() == ENCLAVE_CRASHED)
 diff --git a/sdk/trts/trts_xsave.cpp b/sdk/trts/trts_xsave.cpp
-index e5ee957..facb52c 100644
+index 53fcbd9..ee0ffac 100644
 --- a/sdk/trts/trts_xsave.cpp
 +++ b/sdk/trts/trts_xsave.cpp
 @@ -41,7 +41,7 @@
@@ -483,23 +483,17 @@ index e5ee957..facb52c 100644
      0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-@@ -53,7 +53,7 @@ SYNTHETIC_STATE[SYNTHETIC_STATE_SIZE/sizeof(uint32_t)] = {
+@@ -53,10 +53,10 @@ SYNTHETIC_STATE[SYNTHETIC_STATE_SIZE/sizeof(uint32_t)] = {
      0, 0, 0, 0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // XCOMP_BV[63] = 1, compaction mode
  };
-
--int g_xsave_enabled;             // flag to indicate whether xsave is enabled or not
-+int g_xsave_enabled __attribute__((section(".nipd")));             // flag to indicate whether xsave is enabled or not
-
+ 
+-int g_xsave_enabled = 0;         // flag to indicate whether xsave is enabled or not
++int g_xsave_enabled __attribute__((section(".nipd"))) = 0;         // flag to indicate whether xsave is enabled or not
+ #ifdef SE_SIM
+-uint32_t g_xsave_mask_high = 0xFFFFFFFF;
+-uint32_t g_xsave_mask_low = 0xFFFFFFFF;
++uint32_t g_xsave_mask_high __attribute__((section(".nipd"))) = 0xFFFFFFFF;
++uint32_t g_xsave_mask_low __attribute__((section(".nipd"))) = 0xFFFFFFFF;
+ #endif
+ 
  // EENTER will set xcr0 with secs.attr.xfrm, 
- // So use the xfeature mask from report instead of calling xgetbv
-@@ -72,7 +72,8 @@ uint64_t get_xfeature_state()
-     // target_info and report_data are useless
-     // we only need to make sure their alignment and within enclave
--    uint8_t buffer[sizeof(sgx_report_t) + REPORT_ALIGN_SIZE -1];
--    for(size_t i=0; i< sizeof(sgx_report_t) + REPORT_ALIGN_SIZE -1; i++)
-+    /* uint8_t buffer[sizeof(sgx_report_t) + REPORT_ALIGN_SIZE -1]; */
-+    uint8_t buffer[sizeof(sgx_target_info_t) + REPORT_ALIGN_SIZE -1];
-+    for(size_t i=0; i< sizeof(sgx_target_info_t) + REPORT_ALIGN_SIZE -1; i++)
-     {
-         buffer[i] = 0;
-     }
