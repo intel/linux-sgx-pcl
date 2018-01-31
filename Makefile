@@ -41,10 +41,6 @@ endif
 # root dir and sdk source dir
 PCL_DIR		:= $(CURDIR)
 
-ifeq ($(PREFIX),)
-PREFIX		:= /opt/intel
-endif
-
 ifeq ($(SGX_SDK_SRCS),)
 $(error SGX_SDK_SRCS environment variable must be set to home directory of SGX SDK source files!!!) 
 endif
@@ -60,14 +56,6 @@ all: $(MODULES)
 	$(VERBOSE) echo "all: done"
 	$(VERBOSE) echo 
 
-install: 
-	$(MAKE) all
-	mkdir -p $(PREFIX)/sgxpcl/bin/x64 $(PREFIX)/sgxpcl/lib64 \
-		$(PREFIX)/sgxpcl/include 
-	cp bin/x64/sgx_encrypt $(PREFIX)/sgxpcl/bin/x64
-	cp include/sgx_pcl_guid.h common/pcl_common.h $(PREFIX)/sgxpcl/include
-	cp lib64/libsgx_pcl.a lib64/libsgx_pclsim.a $(PREFIX)/sgxpcl/lib64
-
 clean: $(MODULES)
 	$(VERBOSE) echo "clean: done"
 	$(VERBOSE) echo 
@@ -81,3 +69,5 @@ help:
 	@echo "build Intel(R) SGX PCL library (both HW and SIM versions) and encryption tool"
 	@echo "	all: build Intel(R) SGX PCL library without debug symbols"
 	@echo "	all DEBUG=1: build Intel(R) SGX PCL library with debug symbols"
+	@echo "	clean: clean everything"
+	@echo "	help: display this help message"
