@@ -131,8 +131,8 @@ PCL_SIM_CPP_OBJECTS		:= $(PCL_SIM_CPP_FILES:%.cpp=$(OBJ_DIR)%.o)
 PCL_SIM_C_OBJECTS		:= $(PCL_SIM_C_FILES:%.c=$(OBJ_DIR)%.o)
 
 # build flags
-PCL_INCLUDE_PATH	:= -I$(PCL_DIR)/Include \
-			-I$(PCL_DIR)/Common \
+PCL_INCLUDE_PATH	:= -I$(PCL_DIR)/include \
+			-I$(PCL_DIR)/common \
 			-I$(PCL_DIR)/Sources/crypto \
 			-I$(PCL_DIR)/Sources/unseal \
 			-I$(SGX_SDK)/include \
