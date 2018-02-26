@@ -109,11 +109,7 @@ Set environment variables
   ```
   where < openssl_crypto_libraries_dir > is full path to the directory where OpenSSL 1.1.0g libcrypto.so (or libcrypto.so.1.1 etc.) is located. 
 
-3.	Add to LD_LIBRARY_PATH the path to OpenSSL shared objects.
-  ```
-  $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OPENSSL_ROOT
-  ```
-4.	When separately building the encryption tool, Intel(R) SGX PCL trusted runtime library or sample enclave, set the Intel(R) SGX PCL root folder. 
+3.	When separately building the encryption tool, Intel(R) SGX PCL trusted runtime library or sample enclave, set the Intel(R) SGX PCL root folder. 
   ```
     $ export PCL_DIR=< path_to_pcl_dir >
   ```

@@ -61,7 +61,7 @@ APP_C_FLAGS 		:= $(APP_INCLUDE_PATH) -fPIC -Wno-attributes -g -mrdrnd
 
 SSL_CRYPTO_LIB_NAME := crypto
 
-APP_LINK_FLAGS := -L$(OPENSSL_ROOT) -l$(SSL_CRYPTO_LIB_NAME) -L$(SGX_LIBRARY_PATH) -l$(SERVICE_LIBRARY_NAME)
+APP_LINK_FLAGS := -Wl,-Bstatic -L$(OPENSSL_ROOT) -l$(SSL_CRYPTO_LIB_NAME) -Wl,-Bdynamic -L$(SGX_LIBRARY_PATH) -l$(SERVICE_LIBRARY_NAME) -ldl -lpthread  
 
 ######## PCL Tool ###########
 
