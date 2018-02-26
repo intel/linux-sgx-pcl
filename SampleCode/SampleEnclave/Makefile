@@ -169,7 +169,7 @@ Seal_Enclave_Name_Target := $(Seal_Enclave_Name)
 Signed_Seal_Enclave_Name_Target := $(Signed_Seal_Enclave_Name)
 Unsigned_Enclave_Name 	:= $(Encrypted_Enclave_Name)
 Pcl_Encryption_Tool := $(PCL_DIR)/bin/x64/sgx_encrypt
-PCL_KEY := $(PCL_DIR)/SampleCode/debug_mock_key.bin
+PCL_KEY := ../debug_mock_key.bin
 
 ifeq ($(SGX_DEBUG),1)
 Encryption_Tool_Flags := -d
