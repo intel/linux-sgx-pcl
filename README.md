@@ -168,7 +168,7 @@ Build and test the Intel(R) SGX PCL with the sample code
   $ ./app
 ```
 
-- To compile and run the sample when using the PCL add on:
+- To compile and run the sample when using the PCL add on to older branches of the Intel(R) SGX PSW and SDK:
 ```
   $ cd SampleCode/SampleEnclave
   $ make
