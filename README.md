@@ -3,6 +3,8 @@ Intel(R) Software Guard Extensions (SGX) Protected Code Loader (PCL) for Linux\*
 
 # linux-sgx-pcl
 
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. Please refer to README.md file at  [SampleEnclavePCL](https://github.com/intel/linux-sgx/tree/master/SampleCode/SampleEnclavePCL/)
+
 Introduction
 ------------
 The Intel(R) Software Guard Extensions (Intel(R) SGX) Protected Code Loader (PCL) is intended to protect Intellectual Property (IP) within the code for Intel(R) SGX enclave applications running on the Linux* OS.
@@ -20,7 +22,8 @@ Intel(R) Software Guard Extensions Protected Code Loader for Linux\* OS (Intel(R
 
 **Relation to Intel(R) SGX SDK, Intel(R) SGX PSW and Intel(R) SGX Driver:**
 
-The Intel(R) SGX PCL project is an add-on to the [linux-sgx-sdk](https://github.com/01org/linux-sgx) project which hosts the Intel(R) SGX SDK and Intel(R) SGX PSW. 
+The Intel(R) SGX PCL is integrated into the [linux-sgx-sdk](https://github.com/01org/linux-sgx) project starting branch 2.1.3. 
+For older branches of Intel(R) SGX PSW and SDK the project is an add-on to the Intel(R) SGX SDK and Intel(R) SGX PSW. 
 
 The [linux-sgx-driver](https://github.com/01org/linux-sgx-driver) project hosts the out-of-tree driver for the Linux\* Intel(R) SGX software stack, which will be used until the driver upstreaming process is complete. 
 
@@ -42,6 +45,8 @@ See more elaborate documentation at [Intel(R) SGX Protected Code Loader for Linu
 Prerequisites 
 -------------
 
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. These prerequesites are relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK.  
+
 Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
 -------------------------------------------------------
 Follow the instructions in the [linux-sgx-sdk](https://github.com/01org/linux-sgx) project to build and install the Intel(R) SGX PSW and Intel(R) SGX SDK, branches sgx_2.0, sgx_2.1 or sgx_2.1.1.
@@ -60,6 +65,9 @@ Follow the instructions in the [linux-sgx-driver](https://github.com/01org/linux
 
 OpenSSL1.1.0g
 -------------
+
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. This prerequesite is relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK. 
+
 The build time encryption tool does not use the default OpenSSL version. It uses a newer version (1.1.0g), which must be downloaded and built.
 
 Download OpenSSL1.1.0g from: https://www.openssl.org/source/
@@ -74,10 +82,16 @@ Build instructions: (https://wiki.openssl.org/index.php/Compilation_and_Installa
 
 git
 ---
+
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. This prerequesite is relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK. 
+
 Install git. git is used to apply a patch file to the Intel(R) SGX PSW and Intel(R) SGX SDK. 
 
 Apply modifications to Intel(R) SGX PSW and Intel(R) SGX SDK
 ------------------------------------------------------------
+
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. This step is relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK. 
+
 Apply the required modifications to Intel(R) SGX PSW and Intel(R) SGX SDK source files using the supplied git patch. 
   ```
     $ cd <linux-sgx>
@@ -93,10 +107,16 @@ Apply the required modifications to Intel(R) SGX PSW and Intel(R) SGX SDK source
 
 Rebuild and Reinstall Intel(R) SGX PSW and Intel(R) SGX SDK
 -----------------------------------------------------------
+
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. This step is relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK. 
+
 Follow instructions at [linux-sgx](https://github.com/01org/linux-sgx) to uninstall and clean, then build and install the Intel(R) SGX PSW and Intel(R) SGX SDK.
 
 Set environment variables
 -------------------------
+
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. Steps 1-3 below are relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK. 
+
 1.	Set the Linux Intel(R) SGX PSW and Intel(R) SGX SDK home directory:
   ```
     $ export SGX_SDK_SRCS=< sgx_psw_sdk_sources_home_dir >
@@ -117,6 +137,9 @@ Set environment variables
  
 Build the Intel(R) SGX PCL tool and static library 
 --------------------------------------------------
+
+**Notice:** Starting Intel(R) SGX PSW and SDK branch 2.1.3 the Intel(R) SGX PCL is integrated into the SDK. This step is relevant when Intel(R) SGX PCL is used as a add-on to older branches of the Intel(R) SGX PSW and SDK. 
+
 The following steps describe how to build the Intel(R) SGX PCL build time encryption tool and static library. Enclave writer can build the project according to the enclave writer's requirements.  
 - To build both Intel(R) SGX PCL encryption tool (sgx_encrypt) and Intel(R) SGX PCL statically linked library with default configuration, enter the following command:  
 ```
@@ -140,11 +163,19 @@ Build and test the Intel(R) SGX PCL with the sample code
 
 - To compile and run the sample
 ```
+  $ cd SampleCode/SampleEnclavePCL
+  $ make
+  $ ./app
+```
+
+- To compile and run the sample when using the PCL add on:
+```
   $ cd SampleCode/SampleEnclave
   $ make
   $ ./app
 ```
 
+
 **Note:** See [linux-sgx-sdk](https://github.com/01org/linux-sgx) for instructions on building with debug information and / or building in simulation mode. 
 
-**Note:** Enclave writers are encoureged to compare the sample code to Intel(R) SGX SDK sample code as a demonstration of how the Intel(R) SGX PCL should be integrated into the enclave writer's project.  
+**Note:** Enclave writers are encoureged to compare SampleEnclave to SampleEnclavePCL as a demonstration of how the Intel(R) SGX PCL should be integrated into the enclave writer's project.  
